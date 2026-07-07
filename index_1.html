@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>axis — make a scale, place your people</title>
+<meta name="description" content="build a kinsey-style scale between any two extremes and drop labeled markers on it">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #fbfdff;
+    --grid: #e3f0f8;
+    --grid-strong: #cfe4f2;
+    --ink: #1c2b36;
+    --ink-soft: #61798c;
+    --accent: #5fa8d3;
+    --accent-deep: #2f6f99;
+    --accent-wash: #eaf4fb;
+    --card: #ffffff;
+    --line: #d6e6f2;
+    --tier1: 96px;
+    --tier2: 148px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "Libre Franklin", system-ui, sans-serif;
+    color: var(--ink);
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--grid-strong) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-strong) 1px, transparent 1px),
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 140px 140px, 140px 140px, 28px 28px, 28px 28px;
+    min-height: 100vh;
+    padding: 40px 20px 80px;
+  }
+
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+
+  header { margin-bottom: 36px; }
+  .wordmark {
+    font-family: "Courier Prime", monospace;
+    font-size: 14px;
+    letter-spacing: 0.18em;
+    color: var(--accent-deep);
+    text-transform: lowercase;
+  }
+  .wordmark b { color: var(--ink); font-weight: 500; }
+  h1 {
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    line-height: 1.1;
+    margin-top: 10px;
+    max-width: 20ch;
+  }
+  .tagline { margin-top: 10px; color: var(--ink-soft); max-width: 52ch; line-height: 1.5; }
+
+  .explainer {
+  background: var(--accent-wash);
+  border: 1px solid var(--line);
+  padding: 16px 20px;
+  margin-top: 26px;
+  }
+  .explainer-label {
+    font-family: "Courier Prime", monospace;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent-deep);
+    margin-bottom: 8px;
+  }
+  .explainer p { font-size: 14px; line-height: 1.65; color: var(--ink); }
+
+  .kinsey-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  .kinsey-table th {
+    font-family: "Courier Prime", monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+    text-align: left;
+    padding: 6px 14px 8px 4px;
+    border-bottom: 1.5px solid var(--accent);
+  }
+  .kinsey-table td {
+    padding: 7px 14px 7px 4px;
+    border-bottom: 1px solid var(--line);
+    line-height: 1.45;
+    vertical-align: top;
+  }
+  .kinsey-table td:first-child {
+    font-family: "Courier Prime", monospace;
+    font-size: 12px;
+    color: var(--accent-deep);
+    width: 3.5em;
+  }
+  .kinsey-table tr:last-child td { border-bottom: none; }
+
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 18px; align-items: center; }
+  .presets-label {
+    font-family: "Courier Prime", monospace;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-soft); margin-right: 4px;
+  }
+  .chip {
+    font-family: "Libre Franklin", sans-serif;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 0;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .chip:hover { border-color: var(--accent); background: var(--accent-wash); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 2px 0 var(--line);
+    padding: 28px 28px 22px;
+  }
+
+  .title-row { display: flex; justify-content: center; margin-bottom: 6px; }
+  #scaleTitle {
+    font-family: "Libre Franklin", sans-serif;
+    font-size: 20px; font-weight: 700; text-align: center;
+    border: none; border-bottom: 1.5px dashed transparent;
+    background: transparent; color: var(--ink);
+    padding: 4px 8px; width: 100%; max-width: 420px;
+  }
+  #scaleTitle:hover, #scaleTitle:focus { border-bottom-color: var(--accent); outline: none; }
+  .hint {
+    text-align: center; font-family: "Courier Prime", monospace;
+    font-size: 11px; color: var(--ink-soft); margin-bottom: 8px;
+  }
+
+  .ruler {
+    position: relative;
+    margin: 0 12px;
+    padding-top: calc(var(--tier2) + 44px); /* room for chips */
+  }
+  .rule-line {
+    position: relative;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-deep));
+    border-radius: 2px;
+  }
+  .ticks { position: relative; height: 34px; margin: 0 12px; }
+  .tick {
+    position: absolute; top: 0; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+  }
+  .tick::before { content: ""; width: 1.5px; height: 9px; background: var(--accent-deep); }
+  .tick span {
+    font-family: "Courier Prime", monospace;
+    font-size: 11px; color: var(--ink-soft);
+  }
+
+  .poles { display: flex; justify-content: space-between; gap: 12px; margin-top: 4px; }
+  .poles input {
+    font-family: "Libre Franklin", sans-serif;
+    font-size: 15px; font-weight: 500;
+    color: var(--accent-deep);
+    background: transparent;
+    border: none; border-bottom: 1.5px dashed transparent;
+    padding: 3px 4px; max-width: 42%;
+  }
+  .poles input:hover, .poles input:focus { border-bottom-color: var(--accent); outline: none; }
+  #poleB { text-align: right; }
+
+  .pin {
+    position: absolute;
+    bottom: -8px; /* dot centered on the 3px rule inside padded area */
+    transform: translateX(-50%);
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 3px solid var(--card);
+    box-shadow: 0 0 0 1.5px rgba(28,43,54,.25);
+    cursor: grab;
+    touch-action: none;
+    z-index: 3;
+  }
+  .pin:active { cursor: grabbing; }
+  .pin:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .pin .stem {
+    position: absolute; left: 50%; bottom: 14px;
+    width: 1.5px; background: var(--line);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .pin .tag {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: baseline; gap: 7px;
+    white-space: nowrap;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 0;
+    padding: 4px 11px;
+    font-size: 13px; font-weight: 500;
+    box-shadow: 0 1px 0 var(--line);
+    pointer-events: none;
+  }
+  .pin .tag .val {
+    font-family: "Courier Prime", monospace;
+    font-size: 11px; color: var(--ink-soft);
+  }
+  .pin.tier-0 .stem { height: calc(var(--tier1) - 14px); }
+  .pin.tier-0 .tag  { bottom: var(--tier1); }
+  .pin.tier-1 .stem { height: calc(var(--tier2) - 14px); }
+  .pin.tier-1 .tag  { bottom: var(--tier2); }
+  .pin.dragging { z-index: 6; }
+  .pin.dragging .tag { border-color: var(--accent); }
+
+  .add-row { display: flex; gap: 10px; margin-top: 26px; }
+  .add-row input {
+    flex: 1;
+    font-family: "Libre Franklin", sans-serif;
+    font-size: 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 14px;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .add-row input:focus { outline: none; border-color: var(--accent); }
+  .btn {
+    font-family: "Libre Franklin", sans-serif;
+    font-size: 14px; font-weight: 500;
+    border: 1px solid var(--accent-deep);
+    background: var(--accent);
+    color: #fff;
+    border-radius: 10px;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn:hover { background: var(--accent-deep); }
+  .btn.secondary {
+    background: var(--card); color: var(--accent-deep); border-color: var(--line);
+  }
+  .btn.secondary:hover { background: var(--accent-wash); border-color: var(--accent); }
+
+  .roster { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .roster .entry {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    border-radius: 0;
+    padding: 5px 6px 5px 12px;
+  }
+  .roster .swatch { width: 10px; height: 10px; border-radius: 50%; }
+  .roster .val { font-family: "Courier Prime", monospace; font-size: 11px; color: var(--ink-soft); }
+  .roster .remove {
+    border: none; background: transparent; cursor: pointer;
+    font-family: "Courier Prime", monospace;
+    color: var(--ink-soft); font-size: 13px; line-height: 1;
+    padding: 3px 7px; border-radius: 0;
+  }
+  .roster .remove:hover { background: var(--accent-wash); color: var(--accent-deep); }
+
+  .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
+  .copied {
+    font-family: "Courier Prime", monospace; font-size: 12px;
+    color: var(--accent-deep); opacity: 0; transition: opacity .2s;
+  }
+  .copied.show { opacity: 1; }
+
+  footer {
+    margin-top: 34px;
+    font-family: "Courier Prime", monospace;
+    font-size: 11px; color: var(--ink-soft);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 560px) {
+    :root { --tier1: 84px; --tier2: 132px; }
+    .card { padding: 20px 14px 16px; }
+    .pin .tag { font-size: 12px; padding: 3px 9px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  .card,
+  .chip,
+  .pin .tag,
+  .add-row input,
+  .btn,
+  .roster .entry,
+  .roster .remove,
+  .rule-line,
+  .pin,
+  .roster .swatch {
+    border-radius: 0;
+  }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="wordmark"><b>a kinsey-scale generator<em>!</em></b></div>
+    <h1>i &lt;3 the collapse of dichotomies</h1>
+    <p class="tagline">you can edit the title and the poles, and add multiple markers at any continuous point :&#125;</p>
+  </header>
+
+  <aside class="explainer">
+    <div class="explainer-label">what's a kinsey scale?</div>
+    <p>the kinsey scale was proposed by alfred kinsey in 1948 to define sexuality on a continuous scale instead of a binary. this structure has, in popular internet culture, been extrapolated to other perceieved dichotomies, like "cat person vs. dog person", for example. here is how the original kinsey scale was interpreted:</p>
+    <br>
+    <table class="kinsey-table">
+      <thead>
+        <tr><th>Rating</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>0</td><td>exclusively heterosexual</td></tr>
+        <tr><td>1</td><td>predominantly heterosexual, only incidentally homosexual</td></tr>
+        <tr><td>2</td><td>predominantly heterosexual, but more than incidentally homosexual</td></tr>
+        <tr><td>3</td><td>equally heterosexual and homosexual</td></tr>
+        <tr><td>4</td><td>predominantly homosexual, but more than incidentally heterosexual</td></tr>
+        <tr><td>5</td><td>predominantly homosexual, only incidentally heterosexual</td></tr>
+        <tr><td>6</td><td>exclusively homosexual</td></tr>
+        <tr><td>X</td><td>no socio-sexual contacts or reactions</td></tr>
+      </tbody>
+    </table>
+  </aside>
+
+  <div class="presets" id="presets">
+    <span class="presets-label">start from</span>
+  </div>
+
+  <div class="card">
+    <div class="title-row">
+      <input id="scaleTitle" aria-label="Scale title" placeholder="Untitled scale">
+    </div>
+    <div class="hint">click title or pole labels to edit + drag pins + arrow keys nudge ±0.1</div>
+
+    <div class="ruler" id="ruler">
+      <div class="rule-line" id="ruleLine"></div>
+    </div>
+    <div class="ticks" id="ticks"></div>
+    <div class="poles">
+      <input id="poleA" aria-label="Left pole (0)">
+      <input id="poleB" aria-label="Right pole (6)">
+    </div>
+
+    <div class="add-row">
+      <input id="markerName" placeholder="name a marker!" maxlength="40" aria-label="New marker name">
+      <button class="btn" id="addBtn">add marker</button>
+    </div>
+
+    <div class="roster" id="roster"></div>
+
+    <div class="actions">
+      <button class="btn" id="shareBtn">copy share link</button>
+      <button class="btn secondary" id="clearBtn">clear markers</button>
+      <span class="copied" id="copiedNote">link copied!</span>
+    </div>
+  </div>
+
+  <footer>
+    hi! thanks for stopping by :&#125;
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MAX = 6;
+  var COLORS = ["#5fa8d3", "#7a6ff0", "#e0719b", "#4db6a0", "#e5a44b", "#6d7f92", "#c96f5e", "#8f6fd0"];
+
+  var PRESETS = [
+    { t: "the kinsey scale", a: "exclusively heterosexual", b: "exclusively homosexual" },
+    { t: "cat person vs. dog person", a: "exclusively cats", b: "exclusively dogs" }
+  ];
+
+  var state = {
+    t: PRESETS[0].t,
+    a: PRESETS[0].a,
+    b: PRESETS[0].b,
+    m: []
+  };
+
+  var ruler = document.getElementById("ruler");
+  var ticks = document.getElementById("ticks");
+  var roster = document.getElementById("roster");
+  var titleEl = document.getElementById("scaleTitle");
+  var poleAEl = document.getElementById("poleA");
+  var poleBEl = document.getElementById("poleB");
+  var nameEl = document.getElementById("markerName");
+  var copiedNote = document.getElementById("copiedNote");
+
+  function encodeState(s) {
+    var json = JSON.stringify(s);
+    var b64 = btoa(unescape(encodeURIComponent(json)));
+    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function decodeState(str) {
+    try {
+      var b64 = str.replace(/-/g, "+").replace(/_/g, "/");
+      while (b64.length % 4) b64 += "=";
+      var json = decodeURIComponent(escape(atob(b64)));
+      var s = JSON.parse(json);
+      if (typeof s.a !== "string" || typeof s.b !== "string") return null;
+      if (!Array.isArray(s.m)) s.m = [];
+      s.m = s.m.filter(function (mk) {
+        return mk && typeof mk.n === "string" && typeof mk.v === "number";
+      }).map(function (mk) {
+        return { n: mk.n.slice(0, 40), v: clamp(mk.v), c: (mk.c | 0) % COLORS.length };
+      });
+      s.t = typeof s.t === "string" ? s.t.slice(0, 80) : "";
+      s.a = s.a.slice(0, 60);
+      s.b = s.b.slice(0, 60);
+      return s;
+    } catch (e) { return null; }
+  }
+  function clamp(v) { return Math.min(MAX, Math.max(0, v)); }
+
+  function syncHash() {
+    history.replaceState(null, "", "#" + encodeState(state));
+  }
+
+  function buildTicks() {
+    for (var i = 0; i <= MAX; i++) {
+      var t = document.createElement("div");
+      t.className = "tick";
+      t.style.left = (i / MAX * 100) + "%";
+      var s = document.createElement("span");
+      s.textContent = i;
+      t.appendChild(s);
+      ticks.appendChild(t);
+    }
+  }
+
+  function renderMeta() {
+    titleEl.value = state.t;
+    poleAEl.value = state.a;
+    poleBEl.value = state.b;
+  }
+
+  function renderMarkers() {
+    ruler.querySelectorAll(".pin").forEach(function (p) { p.remove(); });
+    roster.innerHTML = "";
+
+    state.m.forEach(function (mk, i) {
+      var pin = document.createElement("div");
+      pin.className = "pin tier-" + (i % 2);
+      pin.style.left = (mk.v / MAX * 100) + "%";
+      pin.style.background = COLORS[mk.c];
+      pin.dataset.index = i;
+      pin.tabIndex = 0;
+      pin.setAttribute("role", "slider");
+      pin.setAttribute("aria-label", mk.n);
+      pin.setAttribute("aria-valuemin", "0");
+      pin.setAttribute("aria-valuemax", String(MAX));
+      pin.setAttribute("aria-valuenow", mk.v.toFixed(1));
+
+      var stem = document.createElement("div");
+      stem.className = "stem";
+      var tag = document.createElement("div");
+      tag.className = "tag";
+      tag.innerHTML = "";
+      var nameSpan = document.createElement("span");
+      nameSpan.textContent = mk.n;
+      var valSpan = document.createElement("span");
+      valSpan.className = "val";
+      valSpan.textContent = mk.v.toFixed(1);
+      tag.appendChild(nameSpan);
+      tag.appendChild(valSpan);
+
+      pin.appendChild(stem);
+      pin.appendChild(tag);
+      ruler.appendChild(pin);
+
+      var entry = document.createElement("span");
+      entry.className = "entry";
+      var sw = document.createElement("span");
+      sw.className = "swatch";
+      sw.style.background = COLORS[mk.c];
+      var nm = document.createElement("span");
+      nm.textContent = mk.n;
+      var vv = document.createElement("span");
+      vv.className = "val";
+      vv.textContent = mk.v.toFixed(1);
+      var rm = document.createElement("button");
+      rm.className = "remove";
+      rm.textContent = "\u00d7";
+      rm.setAttribute("aria-label", "Remove " + mk.n);
+      rm.addEventListener("click", function () {
+        state.m.splice(i, 1);
+        renderMarkers();
+        syncHash();
+      });
+      entry.appendChild(sw);
+      entry.appendChild(nm);
+      entry.appendChild(vv);
+      entry.appendChild(rm);
+      roster.appendChild(entry);
+    });
+  }
+
+  function updatePin(pin, mk) {
+    pin.style.left = (mk.v / MAX * 100) + "%";
+    pin.setAttribute("aria-valuenow", mk.v.toFixed(1));
+    pin.querySelector(".val").textContent = mk.v.toFixed(1);
+    var entries = roster.querySelectorAll(".entry .val");
+    var idx = +pin.dataset.index;
+    if (entries[idx]) entries[idx].textContent = mk.v.toFixed(1);
+  }
+
+  var dragPin = null;
+
+  function valueFromClientX(x) {
+    var rect = document.getElementById("ruleLine").getBoundingClientRect();
+    var frac = (x - rect.left) / rect.width;
+    return clamp(frac * MAX);
+  }
+
+  ruler.addEventListener("pointerdown", function (e) {
+    var pin = e.target.closest(".pin");
+    if (!pin) return;
+    dragPin = pin;
+    pin.classList.add("dragging");
+    pin.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  ruler.addEventListener("pointermove", function (e) {
+    if (!dragPin) return;
+    var mk = state.m[+dragPin.dataset.index];
+    mk.v = valueFromClientX(e.clientX);
+    updatePin(dragPin, mk);
+  });
+
+  function endDrag() {
+    if (!dragPin) return;
+    dragPin.classList.remove("dragging");
+    dragPin = null;
+    syncHash();
+  }
+  ruler.addEventListener("pointerup", endDrag);
+  ruler.addEventListener("pointercancel", endDrag);
+
+  ruler.addEventListener("keydown", function (e) {
+    var pin = e.target.closest(".pin");
+    if (!pin) return;
+    var mk = state.m[+pin.dataset.index];
+    var step = e.shiftKey ? 0.5 : 0.1;
+    if (e.key === "ArrowLeft" || e.key === "ArrowDown") mk.v = clamp(mk.v - step);
+    else if (e.key === "ArrowRight" || e.key === "ArrowUp") mk.v = clamp(mk.v + step);
+    else if (e.key === "Delete" || e.key === "Backspace") {
+      state.m.splice(+pin.dataset.index, 1);
+      renderMarkers(); syncHash(); return;
+    } else return;
+    e.preventDefault();
+    mk.v = Math.round(mk.v * 10) / 10;
+    updatePin(pin, mk);
+    syncHash();
+  });
+
+  function addMarker() {
+    var n = nameEl.value.trim();
+    if (!n) { nameEl.focus(); return; }
+    state.m.push({ n: n, v: MAX / 2, c: state.m.length % COLORS.length });
+    nameEl.value = "";
+    renderMarkers();
+    syncHash();
+    nameEl.focus();
+  }
+  document.getElementById("addBtn").addEventListener("click", addMarker);
+  nameEl.addEventListener("keydown", function (e) { if (e.key === "Enter") addMarker(); });
+
+  titleEl.addEventListener("input", function () { state.t = titleEl.value.slice(0, 80); syncHash(); });
+  poleAEl.addEventListener("input", function () { state.a = poleAEl.value.slice(0, 60); syncHash(); });
+  poleBEl.addEventListener("input", function () { state.b = poleBEl.value.slice(0, 60); syncHash(); });
+
+  document.getElementById("clearBtn").addEventListener("click", function () {
+    state.m = [];
+    renderMarkers();
+    syncHash();
+  });
+
+  document.getElementById("shareBtn").addEventListener("click", function () {
+    syncHash();
+    var url = location.href;
+    function done() {
+      copiedNote.classList.add("show");
+      setTimeout(function () { copiedNote.classList.remove("show"); }, 2200);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt("Copy this link:", url); });
+    } else {
+      window.prompt("Copy this link:", url);
+    }
+  });
+
+  var presetsWrap = document.getElementById("presets");
+  PRESETS.forEach(function (p) {
+    var c = document.createElement("button");
+    c.className = "chip";
+    c.textContent = p.a + " \u2194 " + p.b;
+    c.addEventListener("click", function () {
+      state.t = p.t; state.a = p.a; state.b = p.b; state.m = [];
+      renderMeta(); renderMarkers(); syncHash();
+    });
+    presetsWrap.appendChild(c);
+  });
+
+  buildTicks();
+  var fromHash = location.hash.length > 1 ? decodeState(location.hash.slice(1)) : null;
+  if (fromHash) state = fromHash;
+  renderMeta();
+  renderMarkers();
+  syncHash();
+})();
+</script>
+</body>
+</html>
