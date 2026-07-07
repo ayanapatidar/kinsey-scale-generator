@@ -406,28 +406,56 @@
   var copiedNote = document.getElementById("copiedNote");
 
   function encodeState(s) {
-    return LZString.compressToEncodedURIComponent(JSON.stringify(s));
+    var parts = [
+      "2",
+      encodeURIComponent(s.t),
+      encodeURIComponent(s.a),
+      encodeURIComponent(s.b)
+    ];
+    s.m.forEach(function (mk) {
+      parts.push(encodeURIComponent(mk.n) + "," + (Math.round(mk.v * 10) / 10));
+    });
+    return parts.join(";");
   }
   function decodeState(str) {
+    if (str.slice(0, 2) === "2;") {
+      try {
+        var parts = str.split(";");
+        var s = {
+          t: decodeURIComponent(parts[1] || "").slice(0, 80),
+          a: decodeURIComponent(parts[2] || "").slice(0, 60),
+          b: decodeURIComponent(parts[3] || "").slice(0, 60),
+          m: []
+        };
+        for (var i = 4; i < parts.length; i++) {
+          if (!parts[i]) continue;
+          var cut = parts[i].lastIndexOf(",");
+          if (cut < 0) continue;
+          s.m.push({
+            n: decodeURIComponent(parts[i].slice(0, cut)).slice(0, 40),
+            v: clamp(parseFloat(parts[i].slice(cut + 1)) || 0),
+            c: s.m.length % COLORS.length
+          });
+        }
+        return s;
+      } catch (e) { return null; }
+    }
     try {
-      var json = LZString.decompressFromEncodedURIComponent(str);
-      if (!json) { // fall back: old-format base64 links keep working
-        var b64 = str.replace(/-/g, "+").replace(/_/g, "/");
-        while (b64.length % 4) b64 += "=";
-        json = decodeURIComponent(escape(atob(b64)));
-      }
-      var s = JSON.parse(json);
-      if (typeof s.a !== "string" || typeof s.b !== "string") return null;
-      if (!Array.isArray(s.m)) s.m = [];
-      s.m = s.m.filter(function (mk) {
+      var b64 = str.replace(/-/g, "+").replace(/_/g, "/");
+      while (b64.length % 4) b64 += "=";
+      var json = decodeURIComponent(escape(atob(b64)));
+      var s2 = JSON.parse(json);
+      if (typeof s2.a !== "string" || typeof s2.b !== "string") return null;
+      if (!Array.isArray(s2.m)) s2.m = [];
+      s2.m = s2.m.filter(function (mk) {
         return mk && typeof mk.n === "string" && typeof mk.v === "number";
       }).map(function (mk) {
         return { n: mk.n.slice(0, 40), v: clamp(mk.v), c: (mk.c | 0) % COLORS.length };
       });
-      s.t = typeof s.t === "string" ? s.t.slice(0, 80) : "";
-      s.a = s.a.slice(0, 60);
-      s.b = s.b.slice(0, 60);
-      return s;
+      s2.t = typeof s2.t === "string" ? s2.t.slice(0, 80) : "";
+      s2.a = s2.a.slice(0, 60);
+      s2.b = s2.b.slice(0, 60);
+      return s2;
     } catch (e) { return null; }
   }
   function clamp(v) { return Math.min(MAX, Math.max(0, v)); }
